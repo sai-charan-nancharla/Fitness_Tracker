@@ -13,7 +13,18 @@ export default function RoutineEditorScreen() {
     const [hasChanges, setHasChanges] = useState(false);
 
     useEffect(() => {
-        setEditedDay(routine[activeDayIndex]);
+        const sourceDay = routine[activeDayIndex];
+        // Calculate exact sums from meals on load/tab switch
+        const exactTargetP = sourceDay.meals.reduce((sum, m) => sum + (Number(m.p) || 0), 0);
+        const exactTargetC = sourceDay.meals.reduce((sum, m) => sum + (Number(m.c) || 0), 0);
+        const exactTargetCal = sourceDay.meals.reduce((sum, m) => sum + (Number(m.cal) || 0), 0);
+
+        setEditedDay({
+            ...sourceDay,
+            targetP: exactTargetP,
+            targetC: exactTargetC,
+            targetCal: exactTargetCal
+        });
         setHasChanges(false);
     }, [activeDayIndex, routine]);
 

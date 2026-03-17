@@ -26,8 +26,12 @@ export default function TrackerScreen() {
     }
   });
 
+  const exactTargetP = day.meals.reduce((sum, m) => sum + (Number(m.p) || 0), 0);
+  const exactTargetC = day.meals.reduce((sum, m) => sum + (Number(m.c) || 0), 0);
+  const exactTargetCal = day.meals.reduce((sum, m) => sum + (Number(m.cal) || 0), 0);
+
   const totalCurrentMacros = p + c + cal;
-  const totalTargetMacros = day.targetP + day.targetC + day.targetCal;
+  const totalTargetMacros = exactTargetP + exactTargetC + exactTargetCal;
   const progressPct = totalTargetMacros > 0 ? Math.min(100, (totalCurrentMacros / totalTargetMacros) * 100) : 0;
 
   return (
@@ -68,7 +72,7 @@ export default function TrackerScreen() {
               onPress={() => updateDay(activeDateStr, { workoutCompleted: !day.workoutCompleted })}
             >
               <Text style={[styles.completeBtnText, day.workoutCompleted && styles.completeBtnTextActive]}>
-                {day.workoutCompleted ? '✓ Done' : 'Complete?'}
+                {day.workoutCompleted ? 'Completed 🔥' : 'Mark as Complete'}
               </Text>
             </TouchableOpacity>
           )}
@@ -76,7 +80,7 @@ export default function TrackerScreen() {
 
         <MacroRing
           p={p} c={c} cal={cal}
-          targetP={day.targetP} targetC={day.targetC} targetCal={day.targetCal}
+          targetP={exactTargetP} targetC={exactTargetC} targetCal={exactTargetCal}
         />
 
         <Text style={styles.sectionTitle}>MEALS</Text>

@@ -44,9 +44,13 @@ export default function DashboardScreen() {
     }
   });
 
-  const pPct = Math.min(100, Math.round((p / dayPreview.targetP) * 100)) || 0;
-  const cPct = Math.min(100, Math.round((c / dayPreview.targetC) * 100)) || 0;
-  const calPct = Math.min(100, Math.round((cal / dayPreview.targetCal) * 100)) || 0;
+  const exactTargetP = dayPreview.meals.reduce((sum, m) => sum + (Number(m.p) || 0), 0);
+  const exactTargetC = dayPreview.meals.reduce((sum, m) => sum + (Number(m.c) || 0), 0);
+  const exactTargetCal = dayPreview.meals.reduce((sum, m) => sum + (Number(m.cal) || 0), 0);
+
+  const pPct = exactTargetP > 0 ? Math.min(100, Math.round((p / exactTargetP) * 100)) : 0;
+  const cPct = exactTargetC > 0 ? Math.min(100, Math.round((c / exactTargetC) * 100)) : 0;
+  const calPct = exactTargetCal > 0 ? Math.min(100, Math.round((cal / exactTargetCal) * 100)) : 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -131,9 +135,9 @@ export default function DashboardScreen() {
             {dayPreview.isRestDay ? '😴 Rest Day' : `💪 ${dayPreview.workout} `}
           </Text>
           <View style={styles.bars}>
-            <MacroRow label="Protein Hit" val={`${p} / ${dayPreview.targetP}g`} color="#a8ff78" fill={`${pPct}%`} />
-            <MacroRow label="Carbs Hit" val={`${c} / ${dayPreview.targetC}g`} color="#78c1ff" fill={`${cPct}%`} />
-            <MacroRow label="Calories Hit" val={`${cal} / ${dayPreview.targetCal}`} color="#ff7eb3" fill={`${calPct}%`} />
+            <MacroRow label="Protein Hit" val={`${p} / ${exactTargetP}g`} color="#a8ff78" fill={`${pPct}%`} />
+            <MacroRow label="Carbs Hit" val={`${c} / ${exactTargetC}g`} color="#78c1ff" fill={`${cPct}%`} />
+            <MacroRow label="Calories Hit" val={`${cal} / ${exactTargetCal}`} color="#ff7eb3" fill={`${calPct}%`} />
           </View >
         </View >
 
@@ -251,15 +255,15 @@ const styles = StyleSheet.create({
   },
   dayIconBg: {
     position: 'absolute',
-    opacity: 0.2, // Blend it with the background for a subtle effect, or 1 for pop
+    opacity: 0.7,
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dayIconText: {
-    fontSize: 22,
-    opacity: 0.6, // Faded icon behind the number
+    fontSize: 28,
+    opacity: 0.8,
   },
   workoutStatus: {
     fontSize: 12,

@@ -1,112 +1,299 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useAppContext } from '@/src/store/AppContext';
+import { eachDayOfInterval, endOfMonth, format, isBefore, isToday, parseISO, startOfDay, startOfMonth } from 'date-fns';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function DashboardScreen() {
+  const { daysData, getDayData, getCurrentStreak } = useAppContext();
+  const [selectedDateStr, setSelectedDateStr] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-export default function TabTwoScreen() {
+  const streak = getCurrentStreak();
+
+  // Calculate month stats
+  const start = startOfMonth(new Date(selectedDateStr));
+  const end = endOfMonth(new Date(selectedDateStr));
+  const daysInMonth = eachDayOfInterval({ start, end });
+
+  let completedWorkouts = 0;
+  let totalWorkouts = 0;
+
+  daysInMonth.forEach(date => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const d = daysData[dateStr] || getDayData(dateStr);
+
+    if (!d.isRestDay) {
+      totalWorkouts++;
+      if (d.workoutCompleted) {
+        completedWorkouts++;
+      }
+    }
+  });
+
+  const monthProgressPct = totalWorkouts > 0 ? (completedWorkouts / totalWorkouts) * 100 : 0;
+
+  const dayPreview = getDayData(selectedDateStr);
+  let p = 0, c = 0, cal = 0;
+  dayPreview.checkedMeals.forEach(id => {
+    const meal = dayPreview.meals.find(m => m.id === id);
+    if (meal) {
+      p += meal.p;
+      c += meal.c;
+      cal += meal.cal;
+    }
+  });
+
+  const pPct = Math.min(100, Math.round((p / dayPreview.targetP) * 100)) || 0;
+  const cPct = Math.min(100, Math.round((c / dayPreview.targetC) * 100)) || 0;
+  const calPct = Math.min(100, Math.round((cal / dayPreview.targetCal) * 100)) || 0;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.title}>DASHBOARD</Text>
+        <Text style={styles.sub}>Analytics & History</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Monthly Progress</Text>
+          <View style={styles.progressBarWrap}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressText}>{completedWorkouts} / {totalWorkouts} Workouts</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ color: '#ff8c42', fontWeight: '800', fontSize: 13 }}>🔥 {streak} Streak</Text>
+                <Text style={styles.progressPct}>{Math.round(monthProgressPct)}%</Text>
+              </View>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${monthProgressPct}%` as any }]} />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Calendar
+            current={selectedDateStr}
+            style={styles.calendar}
+            theme={{
+              backgroundColor: '#181818',
+              calendarBackground: '#181818',
+              textSectionTitleColor: '#888',
+              monthTextColor: '#f0f0f0',
+              arrowColor: '#888',
+              textDayFontWeight: '500',
+              textMonthFontWeight: '700',
+              textDayHeaderFontWeight: '600',
+            } as any}
+            dayComponent={({ date, state }: any) => {
+              const dateStr = date.dateString;
+              const d = daysData[dateStr] || getDayData(dateStr);
+
+              const isSelected = dateStr === selectedDateStr;
+              const isPast = isBefore(parseISO(dateStr), startOfDay(new Date())) && !isToday(parseISO(dateStr));
+
+              let icon = null;
+              if (d.workoutCompleted) {
+                icon = '🔥';
+              } else if (isPast && !d.isRestDay) {
+                icon = '💧';
+              }
+
+              return (
+                <TouchableOpacity
+                  onPress={() => setSelectedDateStr(dateStr)}
+                  style={[
+                    styles.dayCell,
+                    isSelected && styles.dayCellSelected,
+                    state === 'disabled' && styles.dayCellDisabled
+                  ]}
+                >
+                  {icon && (
+                    <View style={styles.dayIconBg}>
+                      <Text style={styles.dayIconText}>{icon}</Text>
+                    </View>
+                  )}
+                  <Text style={[
+                    styles.dayCellText,
+                    isSelected && styles.dayCellTextSelected,
+                    state === 'disabled' && styles.dayCellTextDisabled
+                  ]}>
+                    {date.day}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{format(new Date(selectedDateStr), 'MMMM do, yyyy')} Preview</Text>
+          <Text style={styles.workoutStatus}>
+            {dayPreview.isRestDay ? '😴 Rest Day' : `💪 ${dayPreview.workout} `}
+          </Text>
+          <View style={styles.bars}>
+            <MacroRow label="Protein Hit" val={`${p} / ${dayPreview.targetP}g`} color="#a8ff78" fill={`${pPct}%`} />
+            <MacroRow label="Carbs Hit" val={`${c} / ${dayPreview.targetC}g`} color="#78c1ff" fill={`${cPct}%`} />
+            <MacroRow label="Calories Hit" val={`${cal} / ${dayPreview.targetCal}`} color="#ff7eb3" fill={`${calPct}%`} />
+          </View >
+        </View >
+
+      </ScrollView >
+    </SafeAreaView >
   );
 }
 
+const MacroRow = ({ label, val, color, fill }: any) => (
+  <View style={styles.macroRow}>
+    <View style={styles.mbarHead}>
+      <Text style={styles.mbarName}>{label}</Text>
+      <Text style={[styles.mbarVal, { color }]}>{val}</Text>
+    </View>
+    <View style={styles.mbarTrack}>
+      <View style={[{ width: fill, backgroundColor: color }, styles.mbarFill]} />
+    </View>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#0f0f0f',
   },
-  titleContainer: {
+  scroll: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#78c1ff',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  sub: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#181818',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f0f0f0',
+    marginBottom: 16,
+  },
+  progressBarWrap: {
+    width: '100%',
+  },
+  progressHeader: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '600',
+  },
+  progressPct: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#a8ff78',
+  },
+  progressTrack: {
+    height: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#a8ff78',
+    borderRadius: 99,
+  },
+  calendar: {
+    transform: [{ scale: 0.9 }],
+    marginHorizontal: -16,
+    marginTop: -16,
+  },
+  dayCell: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  dayCellSelected: {
+    backgroundColor: '#78c1ff',
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+  },
+  dayCellText: {
+    color: '#f0f0f0',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dayCellTextSelected: {
+    color: '#0f0f0f',
+    fontWeight: '700',
+  },
+  dayCellTextDisabled: {
+    color: '#333',
+  },
+  dayIconBg: {
+    position: 'absolute',
+    opacity: 0.2, // Blend it with the background for a subtle effect, or 1 for pop
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayIconText: {
+    fontSize: 22,
+    opacity: 0.6, // Faded icon behind the number
+  },
+  workoutStatus: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 16,
+  },
+  bars: {
+    width: '100%',
+    gap: 12,
+  },
+  macroRow: {
+    gap: 4,
+  },
+  mbarHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mbarName: {
+    fontSize: 12,
+    color: '#888',
+  },
+  mbarVal: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mbarTrack: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
+  mbarFill: {
+    height: '100%',
+    borderRadius: 99,
   },
 });
+

@@ -106,7 +106,7 @@ export default function RoutineEditorScreen() {
                         onPress={() => updateField('isRestDay', !editedDay.isRestDay)}
                     >
                         <Text style={[styles.restText, editedDay.isRestDay && styles.restTextActive]}>
-                            {editedDay.isRestDay ? '😴 Mark as Workout Day' : '💪 Mark as Rest Day'}
+                            {editedDay.isRestDay ? '💪 Mark as Workout Day' : '😴 Mark as Rest Day'}
                         </Text>
                     </TouchableOpacity>
                 </View>

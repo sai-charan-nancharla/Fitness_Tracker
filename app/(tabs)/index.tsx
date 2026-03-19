@@ -6,7 +6,7 @@ import { useAppContext } from '@/src/store/AppContext';
 import { format } from 'date-fns';
 import { RefreshCw } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TrackerScreen() {
@@ -59,13 +59,12 @@ export default function TrackerScreen() {
           >
             <Text style={{ fontSize: 14 }}>{day.isRestDay ? '😴' : '💪'}</Text>
           </TouchableOpacity>
-          <TextInput
+          <Text
             style={[styles.workoutInput, day.isRestDay && styles.restInput]}
-            value={day.workout}
-            onChangeText={(txt) => updateDay(activeDateStr, { workout: txt })}
-            placeholder="Workout Name..."
-            placeholderTextColor="#888"
-          />
+            numberOfLines={1}
+          >
+            {day.workout || 'Workout Name...'}
+          </Text>
           {!day.isRestDay && (
             <TouchableOpacity
               style={[styles.completeBtn, day.workoutCompleted && styles.completeBtnActive]}

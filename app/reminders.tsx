@@ -1,5 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Clock, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Clock, Plus, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -27,6 +27,7 @@ const RadioButton = ({ selected, label, onPress }: { selected: boolean; label: s
 
 const ReminderCard = ({ reminder, onUpdate, onDelete }: { reminder: Reminder; onUpdate: (updated: Partial<Reminder>) => void; onDelete?: () => void }) => {
   const [showPicker, setShowPicker] = useState<'time' | 'startTime' | 'endTime' | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleTimeChange = (event: any, selectedDate?: Date) => {
     const current = showPicker;
@@ -58,14 +59,20 @@ const ReminderCard = ({ reminder, onUpdate, onDelete }: { reminder: Reminder; on
           )}
           <Switch
             value={reminder.isEnabled}
-            onValueChange={(val) => onUpdate({ isEnabled: val })}
+            onValueChange={(val) => {
+              onUpdate({ isEnabled: val });
+              if (val) setIsExpanded(true); // Auto-expand when checked
+            }}
             trackColor={{ false: '#333', true: '#4ade80' }}
             thumbColor={reminder.isEnabled ? '#fff' : '#888'}
           />
+          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={styles.expandBtn}>
+            {isExpanded ? <ChevronUp size={24} color="#888" /> : <ChevronDown size={24} color="#888" />}
+          </TouchableOpacity>
         </View>
       </View>
 
-      {reminder.isEnabled && (
+      {reminder.isEnabled && isExpanded && (
         <View style={styles.cardBody}>
           <View style={styles.radioGroup}>
             <RadioButton selected={reminder.type === 'once'} label="Only Once" onPress={() => onUpdate({ type: 'once' })} />
@@ -154,12 +161,19 @@ const ReminderCard = ({ reminder, onUpdate, onDelete }: { reminder: Reminder; on
 
 export default function RemindersScreen() {
   const { reminders, updateReminder, addReminder, deleteReminder } = useAppContext();
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
 
   useEffect(() => {
-    registerForPushNotificationsAsync();
+    const initNotifications = async () => {
+      await registerForPushNotificationsAsync();
+      setPermissionsGranted(true);
+    };
+    initNotifications();
   }, []);
 
   useEffect(() => {
+    if (!permissionsGranted) return;
+    
     const sync = async () => {
       await cancelAllScheduledNotificationsAsync();
       const now = new Date();
@@ -172,12 +186,9 @@ export default function RemindersScreen() {
         if (r.type === 'once' && r.time) {
           const t = new Date(r.time);
           if (t > now) {
-            // Schedule once
-            // Actually expo-notifications allows scheduling daily if we use hourly/daily triggers.
-            // But if it's "Only Once" per card, we just schedule the exact date.
-            // Wait, usually when a user says "Only once" they mean it just triggers at that time today/tomorrow.
-            // If they mean "daily at this time", it would be different, but prompt specifically asked for radio buttons: Once/Frequently.
-            await scheduleNotification(title, body, { date: t } as any);
+            // If the time is within the next 24h, schedule it.
+            // Using precise date casting pattern verified by Expo
+            await scheduleNotification(title, body, { date: t.getTime() } as any);
           }
         } else if (r.type === 'frequently' && r.frequency && r.startTime && r.endTime) {
             const st = new Date(r.startTime);
@@ -208,7 +219,7 @@ export default function RemindersScreen() {
               else if (r.dayType === 'Custom' && r.customDays?.includes(dayIdx)) shouldSchedule = true;
 
               if (shouldSchedule && cur > now) {
-                await scheduleNotification(title, body, { date: cur } as any);
+                await scheduleNotification(title, body, { date: cur.getTime() } as any);
                 scheduledCount++;
               }
               cur = new Date(cur.getTime() + r.frequency * 60000);
@@ -256,8 +267,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#181818', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#333' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { color: '#a8ff78', fontSize: 20, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   deleteBtn: { padding: 4 },
+  expandBtn: { padding: 4 },
   cardBody: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#333', paddingTop: 16 },
   radioGroup: { flexDirection: 'row', gap: 16, marginBottom: 16 },
   radioContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },

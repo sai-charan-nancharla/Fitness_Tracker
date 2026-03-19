@@ -12,6 +12,23 @@ export type Meal = {
   cal: number;
 };
 
+export type ReminderType = 'once' | 'frequently';
+export type ReminderDayType = 'Everyday' | 'Only Today' | 'Custom';
+
+export type Reminder = {
+  id: string;
+  title: string;
+  isEnabled: boolean;
+  isWater: boolean;
+  type: ReminderType;
+  time?: string;
+  frequency?: number;
+  startTime?: string;
+  endTime?: string;
+  dayType?: ReminderDayType;
+  customDays?: number[];
+};
+
 export type DayData = {
   short: string;
   label: string;
@@ -51,11 +68,13 @@ const STORAGE_KEY = '@fitness_tracker_v2';
 interface AppStateData {
   routine: DayData[];
   daysData: Record<string, DayData>;
+  reminders: Reminder[];
 }
 
 interface AppContextType {
   routine: DayData[];
   daysData: Record<string, DayData>;
+  reminders: Reminder[];
   updateRoutineDay: (dayIndex: number, updatedDay: Partial<DayData>) => void;
   getDayData: (dateStr: string) => DayData; // YYYY-MM-DD
   updateDay: (dateStr: string, updatedDay: Partial<DayData>) => void;
@@ -63,6 +82,9 @@ interface AppContextType {
   updateWater: (dateStr: string, amount: number) => void;
   resetDay: (dateStr: string) => void;
   addNewMeal: (dateStr: string, meal: Omit<Meal, 'id'>) => void;
+  addReminder: (reminder: Omit<Reminder, 'id' | 'isWater'>) => void;
+  updateReminder: (id: string, updated: Partial<Reminder>) => void;
+  deleteReminder: (id: string) => void;
   getCurrentStreak: () => number;
 }
 
@@ -71,6 +93,9 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [routine, setRoutine] = useState<DayData[]>(DEFAULT_ROUTINE);
   const [daysData, setDaysData] = useState<Record<string, DayData>>({});
+  const [reminders, setReminders] = useState<Reminder[]>([
+    { id: 'water', title: 'Water', isEnabled: false, isWater: true, type: 'once' }
+  ]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -80,6 +105,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const parsed: AppStateData = JSON.parse(stored);
           if (parsed.routine) setRoutine(parsed.routine);
           if (parsed.daysData) setDaysData(parsed.daysData);
+          if (parsed.reminders) setReminders(parsed.reminders);
         } else {
           // Migration from old app version if needed
           const oldStored = await AsyncStorage.getItem('@fitness_tracker_week');
@@ -95,9 +121,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadData();
   }, []);
 
-  const saveToStorage = async (newRoutine: DayData[], newDaysData: Record<string, DayData>) => {
+  const saveToStorage = async (newRoutine: DayData[], newDaysData: Record<string, DayData>, newReminders: Reminder[]) => {
     try {
-      const data: AppStateData = { routine: newRoutine, daysData: newDaysData };
+      const data: AppStateData = { routine: newRoutine, daysData: newDaysData, reminders: newReminders };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Failed to save data', e);
@@ -108,7 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setRoutine(prev => {
       const next = [...prev];
       next[dayIndex] = { ...next[dayIndex], ...updatedDay };
-      saveToStorage(next, daysData);
+      saveToStorage(next, daysData, reminders);
       return next;
     });
   };
@@ -135,7 +161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDaysData(prev => {
       const current = prev[dateStr] || getDayData(dateStr);
       const next = { ...prev, [dateStr]: { ...current, ...updatedDay } };
-      saveToStorage(routine, next);
+      saveToStorage(routine, next, reminders);
       return next;
     });
   };
@@ -153,7 +179,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       const next = { ...prev, [dateStr]: { ...current, checkedMeals: newChecked } };
-      saveToStorage(routine, next);
+      saveToStorage(routine, next, reminders);
       return next;
     });
   };
@@ -163,7 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const current = prev[dateStr] || getDayData(dateStr);
       const newWater = Math.max(0, Math.min(8, current.water + amount));
       const next = { ...prev, [dateStr]: { ...current, water: newWater } };
-      saveToStorage(routine, next);
+      saveToStorage(routine, next, reminders);
       return next;
     });
   };
@@ -172,7 +198,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDaysData(prev => {
       const current = prev[dateStr] || getDayData(dateStr);
       const next = { ...prev, [dateStr]: { ...current, checkedMeals: [], water: 0, workoutCompleted: false } };
-      saveToStorage(routine, next);
+      saveToStorage(routine, next, reminders);
       return next;
     });
   };
@@ -182,7 +208,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const current = prev[dateStr] || getDayData(dateStr);
       const newMeal: Meal = { ...meal, id: Date.now().toString() };
       const next = { ...prev, [dateStr]: { ...current, meals: [...current.meals, newMeal] } };
-      saveToStorage(routine, next);
+      saveToStorage(routine, next, reminders);
+      return next;
+    });
+  };
+
+  const addReminder = (reminder: Omit<Reminder, 'id' | 'isWater'>) => {
+    setReminders(prev => {
+      const next = [...prev, { ...reminder, id: Date.now().toString(), isWater: false }];
+      saveToStorage(routine, daysData, next);
+      return next;
+    });
+  };
+
+  const updateReminder = (id: string, updated: Partial<Reminder>) => {
+    setReminders(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, ...updated } : r);
+      saveToStorage(routine, daysData, next);
+      return next;
+    });
+  };
+
+  const deleteReminder = (id: string) => {
+    setReminders(prev => {
+      const next = prev.filter(r => r.id !== id);
+      saveToStorage(routine, daysData, next);
       return next;
     });
   };
@@ -223,7 +273,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   return (
-    <AppContext.Provider value={{ routine, daysData, updateRoutineDay, getDayData, updateDay, toggleMealCheck, updateWater, resetDay, addNewMeal, getCurrentStreak }}>
+    <AppContext.Provider value={{
+      routine, daysData, reminders,
+      updateRoutineDay, getDayData, updateDay, toggleMealCheck, updateWater, resetDay, addNewMeal,
+      addReminder, updateReminder, deleteReminder,
+      getCurrentStreak
+    }}>
       {children}
     </AppContext.Provider>
   );

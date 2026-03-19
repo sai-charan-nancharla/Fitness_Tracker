@@ -39,6 +39,10 @@ function RootDrawer() {
         options={{ drawerLabel: 'Home', title: 'Macro Tracker', headerShown: true }}
       />
       <Drawer.Screen
+        name="reminders"
+        options={{ drawerLabel: 'Reminders', title: 'Reminders' }}
+      />
+      <Drawer.Screen
         name="routine"
         options={{ drawerLabel: 'Edit Routine', title: 'Routine Editor' }}
       />
